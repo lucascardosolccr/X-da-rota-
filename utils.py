@@ -63,11 +63,15 @@ def validar_coordenada_brasil(lat, lon):
 
 def calcular_distancia_linha_reta(lat1, lon1, lat2, lon2, contexto=""):
     METRICAS_DISTANCIA["total_calculos"] += 1
+    
     try:
         lat1, lon1, lat2, lon2 = float(lat1), float(lon1), float(lat2), float(lon2)
-        dist_final, status_final = 0.0, ""
+        dist_final = 0.0
+        status_final = ""
+        
         if lat1 == 0.0 or lon1 == 0.0 or lat2 == 0.0 or lon2 == 0.0: 
             return 0.0, "Falha Operacional (Coordenadas Ausentes)"
+            
         if lat1 == lat2 and lon1 == lon2: 
             return 0.0, "Calculada Normalmente (Pontos Coincidentes)"
             
@@ -105,18 +109,19 @@ def calcular_distancia_linha_reta(lat1, lon1, lat2, lon2, contexto=""):
                 METRICAS_DISTANCIA["fallback_haversine"] += 1
                 dist_final, status_final = round(dist_haversine, 2), "Calculada via Fallback Haversine"
             else:
-                logger.error(f"FALHA CRÍTICA PREVENIDA: Distância zerada para pontos diferentes. Ctx: {contexto}")
+                logger.error(f"FALHA CRÍTICA PREVENIDA: Distância zerada para pontos diferentes. {lat1},{lon1} a {lat2},{lon2} | Ctx: {contexto}")
                 METRICAS_DISTANCIA["correcoes_automaticas"] += 1
                 dist_final, status_final = 0.01, "Calculada após reprocessamento (Correção Anti-Zero)"
 
         if dist_final > 5000.0:
-            logger.error(f"ANOMALIA TERRITORIAL: Distância excede os limites do Brasil. Ctx: {contexto}")
+            logger.error(f"ANOMALIA TERRITORIAL: Distância de {dist_final}km excede fisicamente os limites do Brasil. Ctx: {contexto}")
             METRICAS_DISTANCIA["barreira_territorial"] += 1
-            return 0.01, "Falha de Bounding Box"
+            return 0.01, "Falha de Bounding Box (Distância Transcontinental Impossível)"
 
         return dist_final, status_final
+
     except Exception as e:
-        logger.error(f"Erro fatal no motor geodésico ({contexto}): {e}")
+        logger.error(f"Erro fatal no motor de distância geodésica ({contexto}): {e}")
         METRICAS_DISTANCIA["falhas_criticas"] += 1
         return 0.0, "Falha Operacional Crítica no Motor Geodésico"
 
@@ -133,6 +138,6 @@ def enviar_ticket_suporte(sugestao_texto, remetente_email, smtp_user, smtp_pass)
         server.login(smtp_user, smtp_pass)
         server.send_message(msg)
         server.quit()
-        return True, "Ticket transmitido com sucesso via backbone!"
+        return True, "✅ Ticket transmitido com sucesso via backbone!"
     except Exception as e:
         return False, f"Erro ao tentar transmitir a solicitação via SMTP: {str(e)}"
