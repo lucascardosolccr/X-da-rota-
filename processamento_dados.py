@@ -1,6 +1,7 @@
 import os
 import time
 import pickle
+import re
 import pandas as pd
 import streamlit as st
 from unidecode import unidecode
@@ -146,3 +147,32 @@ def get_agg_func(op_name):
     if 'Percentil 50' in op_name: return lambda x: x.quantile(0.50)
     if 'Percentil 75' in op_name: return lambda x: x.quantile(0.75)
     return 'count'
+
+# ==============================================================================
+# DICIONÁRIOS E FUNÇÕES DE GEOLOCALIZAÇÃO REGIONAL
+# ==============================================================================
+
+MAPA_ESTADOS_FULL = {
+    "ACRE": "AC", "ALAGOAS": "AL", "AMAPA": "AP", "AMAZONAS": "AM", "BAHIA": "BA", "CEARA": "CE", "DISTRITO FEDERAL": "DF", 
+    "ESPIRITO SANTO": "ES", "GOIAS": "GO", "MARANHAO": "MA", "MATO GROSSO": "MT", "MATO GROSSO DO SUL": "MS", "MINAS GERAIS": "MG", 
+    "PARA": "PA", "PARAIBA": "PB", "PARANA": "PR", "PERNAMBUCO": "PE", "PIAUI": "PI", "RIO DE JANEIRO": "RJ", "RIO GRANDE DO NORTE": "RN",
+    "RIO GRANDE DO SUL": "RS", "RONDONIA": "RO", "RORAIMA": "RR", "SANTA CATARINA": "SC", "SAO PAULO": "SP", "SERGIPE": "SE", "TOCANTINS": "TO"
+}
+
+REGIOES_BRASIL = {
+    "Norte": ["AC", "AP", "AM", "PA", "RO", "RR", "TO"], "Nordeste": ["AL", "BA", "CE", "MA", "PB", "PE", "PI", "RN", "SE"],
+    "Centro-Oeste": ["DF", "GO", "MT", "MS"], "Sudeste": ["ES", "MG", "RJ", "SP"], "Sul": ["PR", "RS", "SC"]
+}
+
+def extrair_uf_precisa(endereco):
+    if not isinstance(endereco, str): return "Indefinido"
+    end_upper = unidecode(endereco.upper())
+    for nome, sigla in MAPA_ESTADOS_FULL.items():
+        if f" {nome} " in f" {end_upper} " or end_upper.endswith(nome) or f", {nome}," in end_upper: return sigla
+    
+    padrao_uf = r'\b(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)\b'
+    partes = [p.strip() for p in end_upper.split(',')]
+    for p in reversed(partes):
+        match = re.search(padrao_uf, p)
+        if match: return match.group(1)
+    return "Indefinido"
